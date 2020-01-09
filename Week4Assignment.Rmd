@@ -1,0 +1,67 @@
+---
+title: "AssignmentWeek4"
+author: "Andres Palacios"
+date: "9/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Libraries and data
+
+There is an Activity Recognition Dataset from where we can predict the manner in which some people did weight lifting exercises, data was obtained from [Human Activity Recognition proyect](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har) and is available for making reproducible research. For model estimation and prediction, caret package from R will be used.
+
+```{r warning = FALSE, message = FALSE}
+library("caret")
+library("randomForest")
+
+training_data  <- read.delim("F:/Andres/DSpecialization/PML/pml-training.csv", sep = ",")
+testing_data  <- read.delim("F:/Andres/DSpecialization/PML/pml-testing.csv", sep = ",")
+```
+
+# Preparing data
+
+Original dataset is a `r dim(training_data)[1]` x `r dim(training_data)[2]` matrix from we are going to clean and prepare data for improving a following model prediction, to test a dataset of new 20 observations.
+
+```{r}
+non_predictors <- nearZeroVar(training_data)
+training_subset <- training_data[,-non_predictors]
+testing_data <- testing_data[,-non_predictors]
+
+na_variables <- sapply(training_subset, function(x) mean(is.na(x))) > 0.95
+training_subset <- training_subset[ ,na_variables == FALSE]
+testing_data <- testing_data[ ,na_variables == FALSE]
+
+training_subset <- training_subset[ ,8:59]
+testing_data <- testing_data[ ,8:59]
+
+train_sample <- createDataPartition(training_subset$classe, p = 0.6, list=FALSE)
+training_set <- training_subset[train_sample,]
+testing_set <- training_subset[-train_sample,]
+```
+
+# Model estimation
+
+Finally, training dataset is left to a `r dim(training_set)[1]` x `r dim(training_set)[2]` matrix. Looking for options to improve the performance when running a model, because it was tooking too long on my computer when using caret package, on Discussion section of the course it was suggested to run a random forest model, so it will be estimated using randomForest function from the R package of the same name.
+
+```{r cache = TRUE}
+estimated_model <- randomForest(classe ~ ., data=training_set)
+
+prediction <- predict(estimated_model, testing_set)
+conf_matrix <- confusionMatrix(prediction, testing_set$classe)
+conf_matrix
+```
+
+As shown in confusion matrix of the estimated model, an accuracy of `r as.numeric(conf_matrix$overall["Accuracy"])` was reached.
+
+# Prediction on testing set of data.
+
+Predicted values for testing set of new 20 cases are shown below:
+
+```{r}
+predict(estimated_model, testing_data)
+```
+
+# References
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
